@@ -17,9 +17,7 @@ jobs:
         id: diff
         run: |
           git fetch origin ${{ github.base_ref }}
-          echo \`\`\`diff >> diff.txt
           git diff FETCH_HEAD..${{ github.sha }} >> diff.txt
-          echo \`\`\` >> diff.txt
           echo "diff=$(<diff.txt)" >> $GITHUB_ENV
 
       - name: Post Diff to Endpoint as JSON
