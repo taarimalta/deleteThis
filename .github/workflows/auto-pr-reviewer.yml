@@ -3,6 +3,7 @@ name: Post PR Diff and Comment Response
 on:
   pull_request:
     types: [opened, reopened, synchronize]
+  workflow_dispatch:
 
 jobs:
   post-diff-and-comment:
