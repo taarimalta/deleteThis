@@ -1,29 +1,70 @@
-name: Check Pull Request Head Ref
+name: Trigger Workflows via Comment or Dispatch
 
 on:
   issue_comment:
     types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull Request Number'
+        required: true
+      comment:
+        description: 'Comment to trigger the workflow'
+        required: true
+      head_ref:
+        description: 'Branch reference (head ref)'
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  check-head-ref:
+  trigger-workflow:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Fetch Pull Request Information
-        if: ${{ github.event.issue.pull_request }}
+      - name: Determine Comment Source
+        id: comment-source
         uses: actions/github-script@v6
-        id: fetch-pr
         with:
           script: |
-            const pr = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number
-            });
-            console.log("Pull Request Head Ref:", pr.data.head.ref);
-            return { head_ref: pr.data.head.ref };
+            let comment, pr_number, head_ref;
 
-      - name: Output Pull Request Head Ref
+            if (github.context.eventName === 'workflow_dispatch') {
+              // Use inputs from the workflow dispatch
+              comment = github.context.payload.inputs.comment;
+              pr_number = github.context.payload.inputs.pr_number;
+              head_ref = github.context.payload.inputs.head_ref;
+
+            } else if (github.context.eventName === 'issue_comment' && github.context.payload.issue.pull_request) {
+              // Fetch the PR details using the API
+              const prData = await github.rest.pulls.get({
+                owner: github.context.repo.owner,
+                repo: github.context.repo.repo,
+                pull_number: github.context.issue.number
+              });
+              comment = github.context.payload.comment.body;
+              pr_number = github.context.issue.number;
+              head_ref = prData.data.head.ref;
+
+            } else {
+              // Handle the error case
+              core.setFailed("No valid pull request context found.");
+              return;
+            }
+
+            // Export the variables to the environment
+            core.exportVariable('comment', comment);
+            core.exportVariable('pr_number', pr_number);
+            core.exportVariable('head_ref', head_ref);
+
+            console.log(`Comment: ${comment}`);
+            console.log(`PR Number: ${pr_number}`);
+            console.log(`Head Ref: ${head_ref}`);
+
+      - name: Echo Comment, PR Number, and Head Ref
         run: |
-          echo "Pull Request Head Ref: ${{ steps.fetch-pr.outputs.head_ref }}"
-
+          echo "Comment: ${{ env.comment }}"
+          echo "PR Number: ${{ env.pr_number }}"
+          echo "Head Ref: ${{ env.head_ref }}"
