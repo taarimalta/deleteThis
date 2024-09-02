@@ -30,38 +30,40 @@ jobs:
         with:
           script: |
             let comment, pr_number, head_ref;
-
-            if (github.context.eventName === 'workflow_dispatch') {
+            
+            if (context.eventName === 'workflow_dispatch') {
               // Use inputs from the workflow dispatch
-              comment = github.context.payload.inputs.comment;
-              pr_number = github.context.payload.inputs.pr_number;
-              head_ref = github.context.payload.inputs.head_ref;
-
-            } else if (github.context.eventName === 'issue_comment' && github.context.payload.issue.pull_request) {
+              comment = context.payload.inputs.comment;
+              pr_number = context.payload.inputs.pr_number;
+              head_ref = context.payload.inputs.head_ref;
+            
+            } else if (context.eventName === 'issue_comment' && context.payload.issue.pull_request) {
               // Fetch the PR details using the API
               const prData = await github.rest.pulls.get({
-                owner: github.context.repo.owner,
-                repo: github.context.repo.repo,
-                pull_number: github.context.issue.number
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number
               });
-              comment = github.context.payload.comment.body;
-              pr_number = github.context.issue.number;
+              comment = context.payload.comment.body;
+              pr_number = context.issue.number;
               head_ref = prData.data.head.ref;
-
+            
             } else {
               // Handle the error case
               core.setFailed("No valid pull request context found.");
               return;
             }
-
+            
             // Export the variables to the environment
             core.exportVariable('comment', comment);
             core.exportVariable('pr_number', pr_number);
             core.exportVariable('head_ref', head_ref);
-
+            
             console.log(`Comment: ${comment}`);
             console.log(`PR Number: ${pr_number}`);
             console.log(`Head Ref: ${head_ref}`);
+
+
 
       - name: Echo Comment, PR Number, and Head Ref
         run: |
